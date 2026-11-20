@@ -196,6 +196,18 @@ mark{background:var(--accent-soft);color:var(--accent);border-radius:3px;padding
 textarea.ans{width:100%;min-height:150px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);padding:14px 16px;line-height:1.75;resize:vertical;outline:0;box-shadow:var(--shadow)}
 textarea.ans:focus{border-color:var(--faint)}
 textarea.ans::placeholder{color:var(--faint)}
+.qin{position:relative}
+.qin textarea.ans{padding-bottom:54px}
+.mic{position:absolute;right:18px;bottom:12px;width:36px;height:36px;border-radius:50%;border:0;background:var(--active);color:var(--text);display:grid;place-items:center;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:background-color .2s var(--ease),color .2s var(--ease),transform .15s var(--ease)}
+.mic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mic:active{transform:scale(.94)}
+@media (hover:hover){.mic:hover{background:var(--line)}}
+.mic.on{background:var(--accent);color:#fff}
+.mic.on::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--accent);opacity:.5;animation:micpulse 1.4s var(--ease) infinite}
+@keyframes micpulse{0%{transform:scale(.9);opacity:.55}100%{transform:scale(1.25);opacity:0}}
+.tlen{display:flex;align-items:center;border:1px solid var(--line);background:var(--panel);border-radius:12px;height:40px;padding:3px;gap:2px;flex:none;margin-right:6px}
+.tlen button{border:0;background:transparent;height:100%;padding:0 10px;border-radius:9px;cursor:pointer;font-size:.84rem;color:var(--muted);font-variant-numeric:tabular-nums;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:background-color .2s var(--ease),color .2s var(--ease)}
+.tlen button.on{background:var(--active);color:var(--text);font-weight:500}
 .qfoot{display:flex;justify-content:space-between;font-size:.76rem;color:var(--faint);margin-top:5px;padding:0 4px;font-variant-numeric:tabular-nums}
 .note{margin-top:12px;border-left:2px solid var(--accent);padding:2px 0 2px 14px}
 .note p{margin:0 0 6px;font-size:.93rem;line-height:1.7}
@@ -370,7 +382,7 @@ function img(id){if(!IMGS)IMGS=JSON.parse(document.getElementById('imgdata').tex
 const UNIV={ys:{name:'연세대',full:'연세대 구술',years:['mock',2026,2025,2024,2023,2022,2021]},ku:{name:'고려대',full:'고려대 계열적합형',years:[2026,2025,2024,2023,2022,2021]}};
 const KEY='hwalwoo-studio-v1';
 const MOCK='mock',isMock=s=>s.year===MOCK,yLabel=y=>y===MOCK?'실전모의고사':y+'학년도';
-const DEF={answers:{},revealed:{},last:null,settings:{theme:'system',font:'normal',minutes:10}};
+const DEF={answers:{},revealed:{},last:null,settings:{theme:'system',font:'normal',minutes:10,ysMin:8}};
 let S=load();
 function load(){try{const r=JSON.parse(localStorage.getItem(KEY)||'null');if(r&&typeof r==='object')return {...DEF,...r,settings:{...DEF.settings,...(r.settings||{})}};}catch(e){}return JSON.parse(JSON.stringify(DEF));}
 let saveT=null;
@@ -397,6 +409,7 @@ function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');cle
 
 /* ---------- icons ---------- */
 const IC={
+  mic:'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11.5" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
   home:'<svg class="ic ic-home" viewBox="0 0 24 24"><rect class="q1" x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect class="q2" x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect class="q3" x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect class="q4" x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/></svg>',
   ys:'<svg class="ic ic-ys" viewBox="0 0 24 24"><circle class="ring" cx="12" cy="12" r="8" pathLength="100"/><circle class="dot" cx="12" cy="12" r="3"/></svg>',
   ku:'<svg class="ic ic-ku" viewBox="0 0 24 24"><g class="sh"><path d="M5.5 4.5h13v7.5c0 4.4-3.1 7.2-6.5 8.5-3.4-1.3-6.5-4.1-6.5-8.5z"/><path class="mark" d="M12 8.5v6.5M9 11.2h6"/></g></svg>',
@@ -575,7 +588,7 @@ function practice(id){
   bindTimer();
   const cap=`${UNIV[s.univ].name} ${title(s)}`;
   const qs=s.questions.map((q,k)=>{const v=S.answers[qk(id,k)]||'';return `<div class="qb"><div class="qlabel"><b>문제 ${k+1}</b><span>${q.pts?q.pts+'점':''}</span></div><p class="qtext">${esc(q.q)}</p>
-    <textarea class="ans" data-k="${k}" placeholder="답안을 쓰거나, 말할 순서를 메모해 보세요." aria-label="문제 ${k+1} 답안">${esc(v)}</textarea>
+    <div class="qin"><textarea class="ans" data-k="${k}" placeholder="답안을 쓰거나, 말할 순서를 메모해 보세요." aria-label="문제 ${k+1} 답안">${esc(v)}</textarea>${SR?`<button type="button" class="mic" data-mic="${k}" aria-label="문제 ${k+1} 말로 답하기" aria-pressed="false">${IC.mic}</button>`:''}</div>
     <div class="qfoot"><span>${v.length}자</span><span data-saved="${k}"></span></div>
     <div class="qact"><button type="button" class="btn sm" data-show="${k}" aria-expanded="false" aria-controls="qa${k}">답안 보기</button><button type="button" class="btn sm" data-grade="${k}">Claude로 채점</button><a class="grade-go" data-go="${k}" href="https://claude.ai/new" target="_blank" rel="noopener">Claude에 붙여넣기 ↗</a></div>
     <div class="qans" id="qa${k}" hidden>${q.exhtml||'<p class="hint">이 문항은 아직 답안이 없어요.</p>'}</div></div>`;}).join('');
@@ -592,7 +605,8 @@ function practice(id){
       ${revealHtml}
       <div class="navpair">${prev?`<a href="#/set/${prev.id}"><small>이전 세트</small><div>${esc(title(prev))}</div></a>`:'<span></span>'}${next?`<a class="nx" href="#/set/${next.id}"><small>다음 세트</small><div>${esc(title(next))}</div></a>`:'<span></span>'}</div>
     </div></section></div>`;
-  document.querySelectorAll('textarea.ans').forEach(t=>{auto(t);t.addEventListener('input',()=>{const k=t.dataset.k;S.answers[qk(id,k)]=t.value;save();auto(t);t.nextElementSibling.firstElementChild.textContent=t.value.length+'자';const sv=document.querySelector(`[data-saved="${k}"]`);sv.textContent='저장됨';clearTimeout(sv._h);sv._h=setTimeout(()=>sv.textContent='',1400);});});
+  document.querySelectorAll('textarea.ans').forEach(t=>{auto(t);t.addEventListener('input',()=>{const k=t.dataset.k;S.answers[qk(id,k)]=t.value;save();auto(t);t.closest('.qb').querySelector('.qfoot span').textContent=t.value.length+'자';const sv=document.querySelector(`[data-saved="${k}"]`);sv.textContent='저장됨';clearTimeout(sv._h);sv._h=setTimeout(()=>sv.textContent='',1400);});});
+  document.querySelectorAll('[data-mic]').forEach(b=>{const t=b.previousElementSibling;b.onclick=()=>{if(MIC&&MIC.btn===b)micStop();else micStart(t,b);};t.addEventListener('keydown',()=>{if(MIC&&MIC.t===t)micStop();});});
   const toggle=(btn,box,on,off)=>{const open=box.hidden;box.hidden=!open;btn.textContent=open?off:on;btn.setAttribute('aria-expanded',open);btn.classList.toggle('on',open);if(open){box.classList.remove('appear');void box.offsetWidth;box.classList.add('appear');}};
   document.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>toggle(b,$('qa'+b.dataset.show),'답안 보기','답안 숨기기'));
   const rb=$('revBtn');if(rb)rb.onclick=()=>toggle(rb,$('revBody'),'펼치기','접기');
@@ -612,7 +626,8 @@ function gradePrompt(s,k){const q=s.questions[k],ans=(S.answers[qk(s.id,k)]||'')
   '[채점 방식]',
   '- 연습용이니 맥락, 핵심 키워드, 논리 흐름 위주로 봐 줘. 구체적인 서술이나 세부 근거가 부족한 건 감점하지 마.',
   '- 점수는 너그럽게 주고, 부족한 점은 짧고 부드럽게 알려 줘. 학생이 기죽지 않게.',
-  '- 참고 답안은 정답이 아니라 방향을 보여 주는 예시야. 관점이 달라도 논리가 맞으면 인정해 줘.','',
+  '- 참고 답안은 정답이 아니라 방향을 보여 주는 예시야. 관점이 달라도 논리가 맞으면 인정해 줘.',
+  '- 답안은 말로 한 것을 음성 인식으로 받아 적은 것일 수 있어. 오타, 띄어쓰기, 문장부호는 신경 쓰지 말고 내용만 봐 줘.','',
   '[출력 형식]',`점수: ○/${q.pts||10}${q.pts?' (이 문항의 배점)':''}`,'잘한 점: 1~2줄','들어갔으면 좋았을 키워드: 2~3개','한 줄 팁: 1줄','',
   `[시험] ${head}`,`[문제] ${q.q}`,'',
   '[제시문] (그림·그래프는 괄호 안에 글로 설명함)',(s.ptext||s.text||'').trim()||'(제시문 생략)','',
@@ -626,6 +641,7 @@ function gradeAllPrompt(s){
   '- 연습용이니 맥락, 핵심 키워드, 논리 흐름 위주로 봐 줘. 구체적인 서술이나 세부 근거가 부족한 건 감점하지 마.',
   '- 점수는 너그럽게 주고, 부족한 점은 짧고 부드럽게 알려 줘. 학생이 기죽지 않게.',
   '- 참고 답안은 정답이 아니라 방향을 보여 주는 예시야. 관점이 달라도 논리가 맞으면 인정해 줘.',
+  '- 답안은 말로 한 것을 음성 인식으로 받아 적은 것일 수 있어. 오타, 띄어쓰기, 문장부호는 신경 쓰지 말고 내용만 봐 줘.',
   '- 학생이 쓰지 않은 문항은 채점하지 말고 "작성 안 함"이라고만 적어 줘.','',
   '[출력 형식]',
   s.questions.every(q=>q.pts)?'문항마다: 점수(○/그 문항의 배점, 아래 각 문제 제목 옆에 적힌 점수), 잘한 점 1줄, 들어갔으면 좋았을 키워드 2~3개, 한 줄 팁':'문항마다: 점수(○/10), 잘한 점 1줄, 들어갔으면 좋았을 키워드 2~3개, 한 줄 팁',
@@ -653,13 +669,14 @@ function auto(t){t.style.height='auto';t.style.height=Math.max(150,t.scrollHeigh
 const RULE={ys:480,ku:1260};
 const T={set:null,u:'ys',left:480,run:false,last:0,h:null,done:false};
 function timerFor(id){const s=byId(id);if(T.set===id)return;T.set=id;T.u=s.univ;timerReset();}
-function timerReset(){clearInterval(T.h);T.left=RULE[T.u];T.run=false;T.done=false;}
+function timerReset(){clearInterval(T.h);T.left=T.u==='ys'?(S.settings.ysMin===5?300:480):RULE[T.u];T.run=false;T.done=false;}
 function fmt(sec){const a=Math.max(0,sec),m=Math.floor(a/60),s=a%60;return m+':'+String(s).padStart(2,'0');}
-function timerHtml(){return `<div class="timer" id="timer"><button class="t" id="tBtn" aria-label="타이머 시작 또는 멈춤"></button><button class="r" id="tReset" aria-label="타이머 처음으로">↺</button></div>`;}
+function timerHtml(){return `${T.u==='ys'?`<div class="tlen" role="group" aria-label="타이머 길이">${[8,5].map(n=>`<button type="button" data-min="${n}" class="${(S.settings.ysMin||8)===n?'on':''}" aria-pressed="${(S.settings.ysMin||8)===n}">${n}분</button>`).join('')}</div>`:''}<div class="timer" id="timer"><button class="t" id="tBtn" aria-label="타이머 시작 또는 멈춤"></button><button class="r" id="tReset" aria-label="타이머 처음으로">↺</button></div>`;}
 function paintTimer(){const el=$('timer');if(!el)return;el.className='timer'+(T.run?' run':'')+(T.done?' over':'');$('tBtn').textContent=T.done?'끝':(T.run?'':'▶ ')+fmt(T.left);}
 function bindTimer(){
   $('tBtn').onclick=()=>{if(T.done){timerReset();paintTimer();return;}T.run=!T.run;clearInterval(T.h);if(T.run){T.last=Date.now();T.h=setInterval(tick,200);}paintTimer();};
   $('tReset').onclick=()=>{timerReset();paintTimer();};
+  document.querySelectorAll('.tlen button').forEach(b=>b.onclick=()=>{const n=+b.dataset.min;if(S.settings.ysMin===n)return;S.settings.ysMin=n;save();document.querySelectorAll('.tlen button').forEach(x=>{const on=+x.dataset.min===n;x.classList.toggle('on',on);x.setAttribute('aria-pressed',on);});timerReset();paintTimer();});
   paintTimer();
 }
 function tick(){const now=Date.now();if(now-T.last<1000)return;const d=Math.floor((now-T.last)/1000);T.last+=d*1000;T.left-=d;
@@ -673,7 +690,7 @@ function settings(){
   $('view').innerHTML=`<div class="col"><h1 class="h1">설정</h1><p class="lede">답안과 설정은 이 기기의 브라우저에만 저장돼요.</p>
     <div class="setting"><div class="lbl"><b>화면 모드</b><span>기기 설정을 따르거나 직접 고를 수 있어요.</span></div>${seg('theme',[['system','기기'],['light','라이트'],['dark','다크']],S.settings.theme)}</div>
     <div class="setting"><div class="lbl"><b>글자 크기</b><span>문제와 답안 글씨에 적용돼요.</span></div>${seg('font',[['small','작게'],['normal','보통'],['large','크게']],S.settings.font)}</div>
-    <div class="setting"><div class="lbl"><b>타이머</b><span>연세대 8분, 고려대 21분. 세트를 열면 학교에 맞춰 바뀌어요.</span></div></div>
+    <div class="setting"><div class="lbl"><b>타이머</b><span>연세대 8분(타이머 옆에서 5분으로 바꿀 수 있어요), 고려대 21분. 세트를 열면 학교에 맞춰 바뀌어요.</span></div></div>
     <div class="setting"><div class="lbl"><b>답안 백업</b><span>작성한 답안 ${cnt}개. 파일로 내보내 다른 기기에서 불러올 수 있어요.</span></div><div class="btns"><button class="btn" id="exp">내보내기</button><button class="btn" id="imp">불러오기</button><input type="file" id="impFile" accept="application/json,.json" hidden></div></div>
     <div class="setting"><div class="lbl"><b>기록 지우기</b><span>모든 답안과 해설 열람 기록을 지워요. 되돌릴 수 없어요.</span></div><button class="btn" id="wipe">모두 지우기</button></div>
     <div class="setting dev" id="devRow"><div class="lbl"><b>개발자 모드</b><span id="devNum" aria-live="polite"></span></div></div>
@@ -712,8 +729,26 @@ $('zClose').onclick=closeZoom;
 function closeZoom(){$('zoom').classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeZoom();const g=$('egg');if(g)g.classList.remove('open');}});
 
+/* ---------- 말로 답하기 (브라우저 음성 인식) ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+let MIC=null;
+function micJoin(a,b){a=a||'';b=(b||'').trim();if(!b)return a;return a+(a&&!/\s$/.test(a)?' ':'')+b;}
+function micPaint(on){if(!MIC)return;MIC.btn.classList.toggle('on',on);MIC.btn.setAttribute('aria-pressed',on);}
+function micStop(){if(!MIC)return;const m=MIC;m.on=false;micPaint(false);MIC=null;try{m.rec.stop();}catch(e){}}
+function micStart(t,btn){
+  micStop();if(!SR)return;
+  const rec=new SR();rec.lang='ko-KR';rec.continuous=true;rec.interimResults=true;
+  const m={t,btn,rec,on:true,base:t.value,cur:'',heard:false,fails:0};MIC=m;micPaint(true);
+  const put=v=>{t.value=v;t.dispatchEvent(new Event('input'));};
+  rec.onresult=e=>{if(MIC!==m)return;m.heard=true;m.fails=0;let f='',im='';for(let i=0;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)f=micJoin(f,r[0].transcript);else im=micJoin(im,r[0].transcript);}m.cur=f;put(micJoin(micJoin(m.base,f),im));};
+  rec.onerror=e=>{if(MIC!==m)return;if(e.error==='not-allowed'||e.error==='service-not-allowed'){micStop();if(!m.heard)toast('마이크를 쓸 수 있게 허용해 주세요.');}else if(e.error==='network'){micStop();toast('인터넷 연결을 확인해 주세요.');}else if(e.error==='audio-capture'){micStop();toast('마이크를 찾지 못했어요.');}};
+  rec.onend=()=>{m.base=micJoin(m.base,m.cur);m.cur='';if(MIC===m){put(m.base);if(m.on&&++m.fails<6){try{rec.start();return;}catch(e){}}micStop();}};
+  try{rec.start();}catch(e){micStop();toast('음성 인식을 시작하지 못했어요.');}
+}
+
 /* ---------- render ---------- */
 function render(){
+  micStop();
   R=route();document.body.classList.remove('side-open');
   sidebar();
   if(R.v==='set')practice(R.id);
