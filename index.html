@@ -540,8 +540,8 @@ addEventListener('resize',()=>document.querySelectorAll('.seg').forEach(el=>segP
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>document.querySelectorAll('.seg').forEach(el=>segPlace(el,false)));
 let kindFilter='all';
 const KINDS=[['all','전체'],['활동우수','활동우수형'],['기회균형','기회균형'],['추천형','추천형'],['모의','모의·예시']];
-function kindMatch(s){if(kindFilter==='all')return true;if(isMock(s))return kindFilter==='모의';if(kindFilter==='모의')return s.kind==='모의면접'||s.kind==='예시문항';return s.kind.includes(kindFilter);}
-function listYears(u,sets){return UNIV[u].years.map(y=>{const ss=sets.filter(s=>s.year===y);if(y===MOCK&&!ss.length&&(kindFilter==='all'||kindFilter==='모의'))return `<div class="yhead"><span>실전모의고사</span></div><div class="empty">아직 올린 모의고사가 없어요.</div>`;if(!ss.length)return '';return `<div class="yhead"><span>${yLabel(y)}</span><a href="#/${u}/${y}">${y===MOCK?'모아 보기':'이 해만 보기'}</a></div><div class="rows">${ss.map(s=>row(s)).join('')}</div>`;}).join('')||'<div class="empty">이 유형의 기출이 없어요.</div>';}
+function kindMatch(s){if(kindFilter==='all')return true;if(isMock(s))return kindFilter==='모의'||kindFilter==='활동우수';if(kindFilter==='모의')return s.kind==='모의면접'||s.kind==='예시문항';return s.kind.includes(kindFilter);}
+function listYears(u,sets){return UNIV[u].years.map(y=>{const ss=sets.filter(s=>s.year===y);if(y===MOCK&&!ss.length&&(kindFilter==='all'||kindFilter==='모의'||kindFilter==='활동우수'))return `<div class="yhead"><span>실전모의고사</span></div><div class="empty">아직 올린 모의고사가 없어요.</div>`;if(!ss.length)return '';return `<div class="yhead"><span>${yLabel(y)}</span><a href="#/${u}/${y}">${y===MOCK?'모아 보기':'이 해만 보기'}</a></div><div class="rows">${ss.map(s=>row(s)).join('')}</div>`;}).join('')||'<div class="empty">이 유형의 기출이 없어요.</div>';}
 function univ(u){
   topbar('',`<small>${UNIV[u].name}</small>`);
   const sets=SETS.filter(s=>s.univ===u&&(u!=='ys'||kindMatch(s)));
