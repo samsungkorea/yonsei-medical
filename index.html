@@ -193,12 +193,12 @@ mark{background:var(--accent-soft);color:var(--accent);border-radius:3px;padding
 .qlabel{display:flex;justify-content:space-between;align-items:baseline;font-size:.84rem;color:var(--muted);margin-bottom:4px}
 .qlabel b{color:var(--text);font-weight:600}
 .qtext{margin:0 0 10px;line-height:1.7}
-textarea.ans{width:100%;min-height:150px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);padding:14px 16px;line-height:1.75;resize:vertical;outline:0;box-shadow:var(--shadow)}
+textarea.ans{width:100%;min-height:150px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);padding:14px 16px;line-height:1.75;resize:none;outline:0;box-shadow:var(--shadow)}
 textarea.ans:focus{border-color:var(--faint)}
 textarea.ans::placeholder{color:var(--faint)}
 .qin{position:relative}
-.qin textarea.ans{padding-bottom:54px}
-.mic{position:absolute;right:18px;bottom:12px;width:36px;height:36px;border-radius:50%;border:0;background:var(--active);color:var(--text);display:grid;place-items:center;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:background-color .2s var(--ease),color .2s var(--ease),transform .15s var(--ease)}
+.qin textarea.ans{display:block;padding-bottom:54px}
+.mic{position:absolute;right:12px;bottom:12px;width:36px;height:36px;border-radius:50%;border:0;background:var(--active);color:var(--text);display:grid;place-items:center;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:background-color .2s var(--ease),color .2s var(--ease),transform .15s var(--ease)}
 .mic svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .mic:active{transform:scale(.94)}
 @media (hover:hover){.mic:hover{background:var(--line)}}
