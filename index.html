@@ -363,8 +363,9 @@ select.sel{border:1px solid var(--line2);border-radius:11px;background:var(--pan
 const SETS=JSON.parse(document.getElementById('setdata').textContent);
 let IMGS=null;
 function img(id){if(!IMGS)IMGS=JSON.parse(document.getElementById('imgdata').textContent);return IMGS[id];}
-const UNIV={ys:{name:'연세대',full:'연세대 구술',years:[2026,2025,2024,2023,2022,2021]},ku:{name:'고려대',full:'고려대 계열적합형',years:[2026,2025,2024,2023,2022,2021]}};
+const UNIV={ys:{name:'연세대',full:'연세대 구술',years:['mock',2026,2025,2024,2023,2022,2021]},ku:{name:'고려대',full:'고려대 계열적합형',years:[2026,2025,2024,2023,2022,2021]}};
 const KEY='hwalwoo-studio-v1';
+const MOCK='mock',isMock=s=>s.year===MOCK,yLabel=y=>y===MOCK?'실전모의고사':y+'학년도';
 const DEF={answers:{},revealed:{},last:null,settings:{theme:'system',font:'normal',minutes:10}};
 let S=load();
 function load(){try{const r=JSON.parse(localStorage.getItem(KEY)||'null');if(r&&typeof r==='object')return {...DEF,...r,settings:{...DEF.settings,...(r.settings||{})}};}catch(e){}return JSON.parse(JSON.stringify(DEF));}
@@ -377,11 +378,12 @@ const qk=(id,i)=>id+'#'+i;
 const written=(id,i)=>((S.answers[qk(id,i)]||'').trim().length>=10);
 const doneOf=s=>s.questions.reduce((n,_,i)=>n+(written(s.id,i)?1:0),0);
 function title(s){
+  if(isMock(s))return s.title||('실전모의고사'+(s.session?' '+s.session:''));
   if(s.univ==='ys')return `${s.year} ${s.kind} ${s.track}${s.session?' '+s.session:''}`;
   return `${s.year} 계열적합형 ${s.session}`;
 }
 function status(s){const d=doneOf(s),t=s.questions.length;return d===0?{t:`${t}문항`,c:''}:d===t?{t:'완료',c:'done'}:{t:`${d}/${t} 작성`,c:''};}
-function row(s,showUniv){const st=status(s);return `<a class="row" href="#/set/${s.id}"><div class="row-main"><div class="row-title">${showUniv?esc(UNIV[s.univ].name)+' ':''}${esc(title(s))}</div><div class="row-sub">기출</div></div><div class="row-meta ${st.c}">${st.t}</div></a>`;}
+function row(s,showUniv){const st=status(s);return `<a class="row" href="#/set/${s.id}"><div class="row-main"><div class="row-title">${showUniv?esc(UNIV[s.univ].name)+' ':''}${esc(title(s))}</div><div class="row-sub">${isMock(s)?'모의고사':'기출'}</div></div><div class="row-meta ${st.c}">${st.t}</div></a>`;}
 function applySettings(){
   const r=document.documentElement;
   if(S.settings.theme==='system')r.removeAttribute('data-theme');else r.setAttribute('data-theme',S.settings.theme);
@@ -405,6 +407,7 @@ function route(){
   if(h[0]==='set'&&byId(h[1]))return {v:'set',id:h[1]};
   if(h[0]==='settings')return {v:'settings'};
   if((h[0]==='ys'||h[0]==='ku')&&h[1]&&/^\d{4}$/.test(h[1]))return {v:'year',u:h[0],y:+h[1]};
+  if(h[0]==='ys'&&h[1]===MOCK)return {v:'year',u:'ys',y:MOCK};
   if(h[0]==='ys'||h[0]==='ku')return {v:'univ',u:h[0]};
   return {v:'home'};
 }
@@ -417,7 +420,7 @@ function sidebar(){
   $('years').innerHTML=['ys','ku'].map(u=>`<div class="sec">${u==='ys'?'연세대':'고려대 계열적합'}</div><div class="yr">`+UNIV[u].years.map(y=>{
     const n=SETS.filter(s=>s.univ===u&&s.year===y).length;
     const act=(R.v==='year'&&R.u===u&&R.y===y)||(cur&&cur.univ===u&&cur.year===y);
-    return `<a href="#/${u}/${y}" class="${act?'on':''}"><span>${y}</span><span>${n}세트</span></a>`;}).join('')+'</div>').join('');
+    return `<a href="#/${u}/${y}" class="${act?'on':''}"><span>${y===MOCK?'실전모의고사':y}</span><span>${n}세트</span></a>`;}).join('')+'</div>').join('');
   $('setlink').classList.toggle('on',R.v==='settings');
 }
 function topbar(extra='',titleHtml='',bar=false){
@@ -451,7 +454,7 @@ function home(){
     <div class="composer"><input id="q" type="search" placeholder="제시문 속 낱말로 기출 찾기, 예: 중성미자, 멘델, 항생제" autocomplete="off" enterkeyhint="search"><div class="composer-row"><span>연세대 ${SETS.filter(s=>s.univ==='ys').length}세트, 고려대 ${SETS.filter(s=>s.univ==='ku').length}세트</span><button class="go" id="goBtn" aria-label="찾기">${IC.up}</button></div></div>
     <div id="results"></div>
     <div id="homeRest">
-      ${last?`<a class="continue" href="#/set/${last.id}"><div class="row-main"><div class="hint">이어서 풀기</div><div class="row-title">${esc(UNIV[last.univ].name+' '+title(last))}</div><div class="row-sub">기출</div></div><div class="row-meta ${status(last).c}">${status(last).t}</div></a>`:''}
+      ${last?`<a class="continue" href="#/set/${last.id}"><div class="row-main"><div class="hint">이어서 풀기</div><div class="row-title">${esc(UNIV[last.univ].name+' '+title(last))}</div><div class="row-sub">${isMock(last)?'모의고사':'기출'}</div></div><div class="row-meta ${status(last).c}">${status(last).t}</div></a>`:''}
       <div class="block"><h2>연세대 신유형 (2025–2026)</h2><div class="rows">${ysRecent.map(s=>row(s)).join('')}</div></div>
       <div class="block"><h2>고려대 계열적합형 최근 기출</h2><div class="rows">${kuRecent.map(s=>row(s)).join('')}</div></div>
       <p class="progress-note">지금까지 ${all}문항 중 ${done}문항에 답안을 썼어요.</p>
@@ -537,8 +540,8 @@ addEventListener('resize',()=>document.querySelectorAll('.seg').forEach(el=>segP
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>document.querySelectorAll('.seg').forEach(el=>segPlace(el,false)));
 let kindFilter='all';
 const KINDS=[['all','전체'],['활동우수','활동우수형'],['기회균형','기회균형'],['추천형','추천형'],['모의','모의·예시']];
-function kindMatch(s){if(kindFilter==='all')return true;if(kindFilter==='모의')return s.kind==='모의면접'||s.kind==='예시문항';return s.kind.includes(kindFilter);}
-function listYears(u,sets){return UNIV[u].years.map(y=>{const ss=sets.filter(s=>s.year===y);if(!ss.length)return '';return `<div class="yhead"><span>${y}학년도</span><a href="#/${u}/${y}">이 해만 보기</a></div><div class="rows">${ss.map(s=>row(s)).join('')}</div>`;}).join('')||'<div class="empty">이 유형의 기출이 없어요.</div>';}
+function kindMatch(s){if(kindFilter==='all')return true;if(isMock(s))return kindFilter==='모의';if(kindFilter==='모의')return s.kind==='모의면접'||s.kind==='예시문항';return s.kind.includes(kindFilter);}
+function listYears(u,sets){return UNIV[u].years.map(y=>{const ss=sets.filter(s=>s.year===y);if(y===MOCK&&!ss.length&&(kindFilter==='all'||kindFilter==='모의'))return `<div class="yhead"><span>실전모의고사</span></div><div class="empty">아직 올린 모의고사가 없어요.</div>`;if(!ss.length)return '';return `<div class="yhead"><span>${yLabel(y)}</span><a href="#/${u}/${y}">${y===MOCK?'모아 보기':'이 해만 보기'}</a></div><div class="rows">${ss.map(s=>row(s)).join('')}</div>`;}).join('')||'<div class="empty">이 유형의 기출이 없어요.</div>';}
 function univ(u){
   topbar('',`<small>${UNIV[u].name}</small>`);
   const sets=SETS.filter(s=>s.univ===u&&(u!=='ys'||kindMatch(s)));
@@ -552,9 +555,9 @@ function univ(u){
   mountSegs($('view'));
 }
 function year(u,y){
-  topbar('',`<small>${UNIV[u].name}</small>${y}학년도`);
+  topbar('',`<small>${UNIV[u].name}</small>${yLabel(y)}`);
   const ss=SETS.filter(s=>s.univ===u&&s.year===y);
-  $('view').innerHTML=`<div class="col"><h1 class="h1">${UNIV[u].name} ${y}학년도</h1><p class="lede">${ss.length}세트, ${ss.reduce((n,s)=>n+s.questions.length,0)}문항</p><div class="rows">${ss.map(s=>row(s)).join('')||'<div class="empty">수록된 기출이 없어요.</div>'}</div></div>`;
+  $('view').innerHTML=`<div class="col"><h1 class="h1">${UNIV[u].name} ${yLabel(y)}</h1><p class="lede">${ss.length}세트, ${ss.reduce((n,s)=>n+s.questions.length,0)}문항</p><div class="rows">${ss.map(s=>row(s)).join('')||`<div class="empty">${y===MOCK?'아직 올린 모의고사가 없어요.':'수록된 기출이 없어요.'}</div>`}</div></div>`;
 }
 
 /* ---------- practice ---------- */
@@ -572,14 +575,14 @@ function practice(id){
     <div class="qfoot"><span>${v.length}자</span><span data-saved="${k}"></span></div>
     <div class="qact"><button type="button" class="btn sm" data-show="${k}" aria-expanded="false" aria-controls="qa${k}">답안 보기</button><button type="button" class="btn sm" data-grade="${k}">Claude로 채점</button><a class="grade-go" data-go="${k}" href="https://claude.ai/new" target="_blank" rel="noopener">Claude에 붙여넣기 ↗</a></div>
     <div class="qans" id="qa${k}" hidden>${q.exhtml||'<p class="hint">이 문항은 아직 답안이 없어요.</p>'}</div></div>`;}).join('');
-  const label=s.univ==='ys'?'출제 의도와 공식 해설':(s.year===2021?'공식 채점 기준':'공식 예시 답안');
-  const revealHtml=s.answer.length?`<div class="reveal"><h2>${label}</h2><p class="hint">학교가 공개한 해설 원문이에요. 다 풀고 나서 열어 보세요.</p><button class="btn" id="revBtn" aria-expanded="false" aria-controls="revBody">펼치기</button>
+  const label=isMock(s)?'모의고사 해설':s.univ==='ys'?'출제 의도와 공식 해설':(s.year===2021?'공식 채점 기준':'공식 예시 답안');
+  const revealHtml=s.answer.length?`<div class="reveal"><h2>${label}</h2><p class="hint">${isMock(s)?'모의고사 해설 원문이에요':'학교가 공개한 해설 원문이에요'}. 다 풀고 나서 열어 보세요.</p><button class="btn" id="revBtn" aria-expanded="false" aria-controls="revBody">펼치기</button>
     <div id="revBody" hidden>${s.univ==='ku'&&s.sourceNote?`<p class="hint">${esc(s.sourceNote)}</p>`:''}${s.answer.map(a=>imgTag(a,cap+' 해설')).join('')}</div></div>`:'';
   $('view').innerHTML=`<div class="practice" id="prac" data-tab="${tab}">
     <div class="tabs">${seg('tab',[['paper','제시문'],['answers','답안']],tab)}</div>
     <section class="pane paper" aria-label="제시문"><div class="paper-inner"><div class="paper-cap">원문을 누르면 크게 볼 수 있어요.</div>${s.problem.map(p=>imgTag(p,cap+' 제시문')).join('')}</div></section>
     <section class="pane answers" aria-label="답안"><div class="answers-inner">
-      <div class="set-head"><h1>${esc(title(s))}</h1><p>${esc(UNIV[s.univ].name)} 기출</p></div>
+      <div class="set-head"><h1>${esc(title(s))}</h1><p>${esc(UNIV[s.univ].name)} ${isMock(s)?'실전모의고사':'기출'}</p></div>
       ${qs}
       <div class="allact"><button type="button" class="btn" id="showAll" aria-expanded="false">답안 한번에 보기</button><button type="button" class="btn" id="gradeAll">Claude로 한번에 채점</button><a class="grade-go" id="goAll" href="https://claude.ai/new" target="_blank" rel="noopener">Claude에 붙여넣기 ↗</a></div>
       ${revealHtml}
