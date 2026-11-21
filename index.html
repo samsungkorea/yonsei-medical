@@ -203,15 +203,6 @@ textarea.ans::placeholder{color:var(--faint)}
 .mic:active{transform:scale(.94)}
 @media (hover:hover){.mic:hover{background:var(--line)}}
 .mic.on{background:var(--accent);color:#fff}
-.mic.busy{cursor:progress}
-.mic.busy svg{opacity:0}
-.mic.busy::before{content:"";position:absolute;width:16px;height:16px;border-radius:50%;border:2px solid var(--faint);border-top-color:var(--accent);animation:micspin .8s linear infinite}
-@keyframes micspin{to{transform:rotate(360deg)}}
-.keyrow{display:flex;gap:8px;align-items:center;flex:none;justify-content:flex-end}
-.keyrow input{width:190px;max-width:100%;height:36px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);color:var(--text);padding:0 12px;font:inherit;font-size:.88rem;outline:0}
-.keyrow input:focus{border-color:var(--faint)}
-.setting .lbl a{color:var(--accent);white-space:nowrap}
-@media (max-width:640px){.setting:has(.keyrow){flex-wrap:wrap}.keyrow{flex:1 1 100%}.keyrow input{flex:1;width:auto}}
 .mic.on::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--accent);opacity:.5;animation:micpulse 1.4s var(--ease) infinite}
 @keyframes micpulse{0%{transform:scale(.9);opacity:.55}100%{transform:scale(1.25);opacity:0}}
 .tlen{display:flex;align-items:center;border:1px solid var(--line);background:var(--panel);border-radius:12px;height:40px;padding:3px;gap:2px;flex:none;margin-right:6px}
@@ -606,7 +597,7 @@ function practice(id){
   bindTimer();
   const cap=`${UNIV[s.univ].name} ${title(s)}`;
   const qs=s.questions.map((q,k)=>{const v=S.answers[qk(id,k)]||'';const past=hist(id).map((h,n)=>[n+1,h]).filter(([n,h])=>(h.a[k]||'').trim()).reverse();return `<div class="qb"><div class="qlabel"><b>문제 ${k+1}</b><span>${q.pts?q.pts+'점':''}</span></div><p class="qtext">${esc(q.q)}</p>
-    <div class="qin"><textarea class="ans" data-k="${k}" placeholder="답안을 쓰거나, 말할 순서를 메모해 보세요." aria-label="문제 ${k+1} 답안">${esc(v)}</textarea>${(SR||HASREC)?`<button type="button" class="mic" data-mic="${k}" aria-label="문제 ${k+1} 말로 답하기" aria-pressed="false">${IC.mic}</button>`:''}</div>
+    <div class="qin"><textarea class="ans" data-k="${k}" placeholder="답안을 쓰거나, 말할 순서를 메모해 보세요." aria-label="문제 ${k+1} 답안">${esc(v)}</textarea>${SR?`<button type="button" class="mic" data-mic="${k}" aria-label="문제 ${k+1} 말로 답하기" aria-pressed="false">${IC.mic}</button>`:''}</div>
     <div class="qfoot"><span>${v.length}자</span><span data-saved="${k}"></span></div>
     <div class="qact"><button type="button" class="btn sm" data-show="${k}" aria-expanded="false" aria-controls="qa${k}">답안 보기</button><button type="button" class="btn sm" data-grade="${k}">Claude로 채점</button>${past.length?`<button type="button" class="btn sm" data-past="${k}" aria-expanded="false" aria-controls="qp${k}">지난 답안</button>`:''}<a class="grade-go" data-go="${k}" href="https://claude.ai/new" target="_blank" rel="noopener">Claude에 붙여넣기 ↗</a></div>
     ${past.length?`<div class="qpast" id="qp${k}" hidden>${past.map(([n,h])=>`<div class="pi"><b>${n}회차 · ${md(h.at)} · ${h.a[k].length}자</b><p>${esc(h.a[k])}</p></div>`).join('')}</div>`:''}<div class="qans" id="qa${k}" hidden>${q.exhtml||'<p class="hint">이 문항은 아직 답안이 없어요.</p>'}</div></div>`;}).join('');
@@ -624,7 +615,7 @@ function practice(id){
       <div class="navpair">${prev?`<a href="#/set/${prev.id}"><small>이전 세트</small><div>${esc(title(prev))}</div></a>`:'<span></span>'}${next?`<a class="nx" href="#/set/${next.id}"><small>다음 세트</small><div>${esc(title(next))}</div></a>`:'<span></span>'}</div>
     </div></section></div>`;
   document.querySelectorAll('textarea.ans').forEach(t=>{auto(t);t.addEventListener('input',()=>{const k=t.dataset.k;S.answers[qk(id,k)]=t.value;save();auto(t);t.closest('.qb').querySelector('.qfoot span').textContent=t.value.length+'자';const sv=document.querySelector(`[data-saved="${k}"]`);sv.textContent='저장됨';clearTimeout(sv._h);sv._h=setTimeout(()=>sv.textContent='',1400);});});
-  document.querySelectorAll('[data-mic]').forEach(b=>{const t=b.previousElementSibling;b.onclick=()=>{if(b.classList.contains('busy'))return;if(MIC&&MIC.btn===b)micStop();else micStart(t,b);};t.addEventListener('keydown',()=>{if(MIC&&MIC.t===t&&MIC.kind==='sr')micStop();});});
+  document.querySelectorAll('[data-mic]').forEach(b=>{const t=b.previousElementSibling;b.onclick=()=>{if(MIC&&MIC.btn===b)micStop();else micStart(t,b);};t.addEventListener('keydown',()=>{if(MIC&&MIC.t===t)micStop();});});
   $('retry').onclick=()=>{const a={};s.questions.forEach((q,k)=>{const v=(S.answers[qk(id,k)]||'').trim();if(v)a[k]=S.answers[qk(id,k)];});
     if(!Object.keys(a).length){toast('아직 쓴 답안이 없어요.');return;}
     micStop();if(!S.history)S.history={};(S.history[id]=S.history[id]||[]).push({at:Date.now(),a});
@@ -716,7 +707,6 @@ function settings(){
     <div class="setting"><div class="lbl"><b>화면 모드</b><span>기기 설정을 따르거나 직접 고를 수 있어요.</span></div>${seg('theme',[['system','기기'],['light','라이트'],['dark','다크']],S.settings.theme)}</div>
     <div class="setting"><div class="lbl"><b>글자 크기</b><span>문제와 답안 글씨에 적용돼요.</span></div>${seg('font',[['small','작게'],['normal','보통'],['large','크게']],S.settings.font)}</div>
     <div class="setting"><div class="lbl"><b>타이머</b><span>연세대 8분(타이머 옆에서 5분으로 바꿀 수 있어요), 고려대 21분. 세트를 열면 학교에 맞춰 바뀌어요.</span></div></div>
-    <div class="setting"><div class="lbl"><b>음성 인식</b><span id="gStat">${gkey()?`Gemini로 받아 적어요 · ${esc(gmodel())}`:'Gemini API 키를 넣으면 말한 답을 훨씬 정확하게 받아 적어요. 키는 이 기기에만 저장돼요.'} <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">키 발급 ↗</a></span></div><div class="keyrow"><input id="gKey" type="password" autocomplete="off" spellcheck="false" placeholder="${gkey()?'새 키로 바꾸기':'API 키 붙여넣기'}" aria-label="Gemini API 키"><button class="btn" id="gSave">저장</button>${gkey()?'<button class="btn" id="gDel">지우기</button>':''}</div></div>
     <div class="setting"><div class="lbl"><b>답안 백업</b><span>작성한 답안 ${cnt}개. 파일로 내보내 다른 기기에서 불러올 수 있어요.</span></div><div class="btns"><button class="btn" id="exp">내보내기</button><button class="btn" id="imp">불러오기</button><input type="file" id="impFile" accept="application/json,.json" hidden></div></div>
     <div class="setting dev" id="devRow"><div class="lbl"><b>개발자 모드</b><span id="devNum" aria-live="polite"></span></div></div>
   </div>`;
@@ -725,11 +715,6 @@ function settings(){
     else{document.documentElement.classList.add('themefade');applySettings();setTimeout(()=>document.documentElement.classList.remove('themefade'),800);}};
   SEGH.font=v=>{S.settings.font=v;save();applySettings();requestAnimationFrame(()=>document.querySelectorAll('.seg').forEach(el=>segPlace(el,true)));};
   mountSegs($('view'));
-  $('gSave').onclick=async()=>{const k=$('gKey').value.trim();if(!k){toast('API 키를 붙여넣어 주세요.');return;}
-    const b=$('gSave');b.disabled=true;b.textContent='확인 중…';
-    try{const mdl=await gPickModel(k);localStorage.setItem(GK,k);localStorage.setItem(GMK,mdl);toast('연결됐어요. 이제 🎤로 말하면 Gemini가 받아 적어요.');settings();}
-    catch(e){b.disabled=false;b.textContent='저장';toast(e.msg||(e.status?'키를 확인해 주세요. ('+e.status+')':'연결하지 못했어요. 인터넷을 확인해 주세요.'));}};
-  if($('gDel'))$('gDel').onclick=()=>{localStorage.removeItem(GK);localStorage.removeItem(GMK);toast('키를 지웠어요.');settings();};
   $('exp').onclick=()=>{const blob=new Blob([JSON.stringify({app:'hwalwoo-studio',v:1,at:new Date().toISOString(),data:S},null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='활우스튜디오-답안-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);toast('답안 파일을 내보냈어요.');};
   $('imp').onclick=()=>$('impFile').click();
   $('impFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);const d=j.data||j;if(!d.answers)throw 0;S={...DEF,...d,settings:{...DEF.settings,...(d.settings||{})}};save();applySettings();settings();toast('답안을 불러왔어요.');}catch(err){toast('이 파일은 활우 스튜디오 백업 파일이 아니에요.');}};r.readAsText(f);};
@@ -758,100 +743,22 @@ $('zClose').onclick=closeZoom;
 function closeZoom(){$('zoom').classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeZoom();const g=$('egg');if(g)g.classList.remove('open');}});
 
-/* ---------- 말로 답하기 ---------- */
-/* Gemini API 키가 있으면 녹음 → Gemini 받아쓰기, 없으면 브라우저 음성 인식 */
+/* ---------- 말로 답하기 (브라우저 음성 인식) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
-const HASREC=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&(window.AudioContext||window.webkitAudioContext));
-const GK='hwalwoo-gemini-key',GMK='hwalwoo-gemini-model',GAPI='https://generativelanguage.googleapis.com/v1beta/';
-const gkey=()=>{try{return localStorage.getItem(GK)||'';}catch(e){return '';}};
-const gmodel=()=>{try{return localStorage.getItem(GMK)||'gemini-flash-latest';}catch(e){return 'gemini-flash-latest';}};
 let MIC=null;
 function micJoin(a,b){a=a||'';b=(b||'').trim();if(!b)return a;return a+(a&&!/\s$/.test(a)?' ':'')+b;}
-function micPaint(m,st){m.btn.classList.toggle('on',st==='on');m.btn.classList.toggle('busy',st==='busy');m.btn.setAttribute('aria-pressed',st==='on');}
-function micNote(m,txt){const el=document.querySelector(`[data-saved="${m.k}"]`);if(el&&m.t.isConnected){el.textContent=txt;clearTimeout(el._h);}}
-function micStop(){if(!MIC)return;const m=MIC;MIC=null;m.stop();}
+function micPaint(on){if(!MIC)return;MIC.btn.classList.toggle('on',on);MIC.btn.setAttribute('aria-pressed',on);}
+function micStop(){if(!MIC)return;const m=MIC;m.on=false;micPaint(false);MIC=null;try{m.rec.stop();}catch(e){}}
 function micStart(t,btn){
-  micStop();
-  const m={t,btn,k:+t.dataset.k,setId:R.id};
-  if(gkey()&&HASREC)return recStart(m);
-  if(SR)return srStart(m);
-  toast(HASREC?'설정에서 Gemini API 키를 넣으면 말로 답할 수 있어요.':'이 브라우저에서는 음성 입력을 쓸 수 없어요.');
-}
-/* 받아 적은 글을 답안에 붙이기 (화면을 떠났어도 저장) */
-function micPut(m,txt){if(!txt)return;const key=qk(m.setId,m.k);
-  if(m.t.isConnected&&R.v==='set'&&R.id===m.setId){m.t.value=micJoin(m.t.value,txt);m.t.dispatchEvent(new Event('input'));}
-  else{S.answers[key]=micJoin(S.answers[key]||'',txt);save();}}
-
-/* 브라우저 음성 인식 (키가 없을 때) */
-function srStart(m){
+  micStop();if(!SR)return;
   const rec=new SR();rec.lang='ko-KR';rec.continuous=true;rec.interimResults=true;
-  Object.assign(m,{kind:'sr',on:true,base:m.t.value,cur:'',heard:false,fails:0});MIC=m;micPaint(m,'on');
-  m.stop=()=>{m.on=false;micPaint(m,'');try{rec.stop();}catch(e){}};
-  const put=v=>{m.t.value=v;m.t.dispatchEvent(new Event('input'));};
+  const m={t,btn,rec,on:true,base:t.value,cur:'',heard:false,fails:0};MIC=m;micPaint(true);
+  const put=v=>{t.value=v;t.dispatchEvent(new Event('input'));};
   rec.onresult=e=>{if(MIC!==m)return;m.heard=true;m.fails=0;let f='',im='';for(let i=0;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)f=micJoin(f,r[0].transcript);else im=micJoin(im,r[0].transcript);}m.cur=f;put(micJoin(micJoin(m.base,f),im));};
   rec.onerror=e=>{if(MIC!==m)return;if(e.error==='not-allowed'||e.error==='service-not-allowed'){micStop();if(!m.heard)toast('마이크를 쓸 수 있게 허용해 주세요.');}else if(e.error==='network'){micStop();toast('인터넷 연결을 확인해 주세요.');}else if(e.error==='audio-capture'){micStop();toast('마이크를 찾지 못했어요.');}};
   rec.onend=()=>{m.base=micJoin(m.base,m.cur);m.cur='';if(MIC===m){put(m.base);if(m.on&&++m.fails<6){try{rec.start();return;}catch(e){}}micStop();}};
   try{rec.start();}catch(e){micStop();toast('음성 인식을 시작하지 못했어요.');}
 }
-
-/* 녹음 (16kHz 모노 PCM) */
-async function recStart(m){
-  Object.assign(m,{kind:'rec',pcm:[],n:0,t0:Date.now()});MIC=m;micPaint(m,'on');
-  let stream,ctx;
-  m.stop=()=>{micPaint(m,'busy');clearInterval(m.h);try{m.proc&&m.proc.disconnect();m.src&&m.src.disconnect();}catch(e){}
-    if(stream)stream.getTracks().forEach(x=>x.stop());if(ctx)ctx.close().catch(()=>{});
-    recFinish(m);};
-  try{
-    ctx=new (window.AudioContext||window.webkitAudioContext)();
-    stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-    if(MIC!==m){stream.getTracks().forEach(x=>x.stop());ctx.close().catch(()=>{});return;}
-    await ctx.resume();
-    const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1),ratio=ctx.sampleRate/16000;let pos=0;
-    proc.onaudioprocess=e=>{const x=e.inputBuffer.getChannelData(0),out=new Int16Array(Math.ceil((x.length-pos)/ratio)+1);let j=0;
-      while(pos<x.length){const i=pos|0,f=pos-i,a=x[i],b=i+1<x.length?x[i+1]:a;let v=a+(b-a)*f;v=v<-1?-1:v>1?1:v;out[j++]=v<0?v*32768:v*32767;pos+=ratio;}
-      pos-=x.length;m.pcm.push(out.subarray(0,j));m.n+=j;};
-    src.connect(proc);proc.connect(ctx.destination);m.src=src;m.proc=proc;
-    const tick=()=>{const s=Math.floor((Date.now()-m.t0)/1000);micNote(m,`녹음 중 ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`);};tick();m.h=setInterval(tick,500);
-  }catch(e){if(MIC===m)MIC=null;micPaint(m,'');clearInterval(m.h);if(stream)stream.getTracks().forEach(x=>x.stop());if(ctx)ctx.close().catch(()=>{});
-    toast(e&&e.name==='NotAllowedError'?'마이크를 쓸 수 있게 허용해 주세요.':'마이크를 시작하지 못했어요.');}
-}
-function wavBlob(pcm){const b=new ArrayBuffer(44+pcm.length*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
-  w(0,'RIFF');v.setUint32(4,36+pcm.length*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
-  v.setUint32(24,16000,true);v.setUint32(28,32000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,pcm.length*2,true);
-  new Int16Array(b,44).set(pcm);return new Blob([b],{type:'audio/wav'});}
-const b64=blob=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=no;r.readAsDataURL(blob);});
-async function recFinish(m){
-  if(m.n<16000*0.6){micPaint(m,'');micNote(m,'');toast('녹음이 너무 짧아요.');return;}
-  const all=new Int16Array(m.n);let o=0;m.pcm.forEach(c=>{all.set(c,o);o+=c.length;});m.pcm=null;
-  const seg=16000*240,parts=[];for(let i=0;i<all.length;i+=seg)parts.push(all.subarray(i,i+seg));
-  const set=byId(m.setId),q=set&&set.questions[m.k];let out='';
-  try{
-    for(let i=0;i<parts.length;i++){micNote(m,parts.length>1?`받아 적는 중… (${i+1}/${parts.length})`:'받아 적는 중…');
-      out=micJoin(out,await gTranscribe(await b64(wavBlob(parts[i])),q?q.q:''));}
-    micPut(m,out);micNote(m,out?'받아 적었어요':'');if(!out)toast('알아들은 말이 없어요.');
-  }catch(e){micNote(m,'');toast(e.msg||'받아 적지 못했어요. 잠시 뒤 다시 해 보세요.');}
-  micPaint(m,'');
-}
-async function gCall(path,body,key){const r=await fetch(GAPI+path,{method:body?'POST':'GET',headers:Object.assign({'x-goog-api-key':key},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});
-  let j=null;try{j=await r.json();}catch(e){}
-  if(!r.ok){const err=new Error('gemini '+r.status);err.status=r.status;err.detail=j&&j.error&&j.error.message||'';
-    err.msg=r.status===400&&/key/i.test(err.detail)||r.status===401||r.status===403?'Gemini API 키를 확인해 주세요.':r.status===429?'Gemini 사용량 한도에 걸렸어요. 잠시 뒤 다시 해 보세요.':'';throw err;}
-  return j;}
-async function gTranscribe(data,qtext){const key=gkey();
-  const prompt=['한국어 대학 구술면접 연습 답변을 녹음한 것이다. 들리는 말을 한국어로 그대로 받아 적어라.',
-    '- 요약하거나 고치거나 덧붙이지 마라. 말한 내용과 순서를 그대로 살려라.','- "어", "음" 같은 군말과 말을 더듬어 반복한 부분만 빼라.',
-    '- 띄어쓰기와 문장부호는 자연스럽게 넣어라.','- "제시문 가/나/다/라"는 "제시문 [가]"처럼 대괄호로 적어라.',
-    '- 받아 적은 글만 출력하라. 들리는 말이 없으면 아무것도 출력하지 마라.',qtext?'(참고: 답하는 문제는 "'+qtext+'")':''].filter(Boolean).join('\n');
-  const body={contents:[{parts:[{text:prompt},{inline_data:{mime_type:'audio/wav',data}}]}],generationConfig:{temperature:0}};
-  let j;try{j=await gCall('models/'+gmodel()+':generateContent',body,key);}
-  catch(e){if(e.status===404){const mdl=await gPickModel(key);localStorage.setItem(GMK,mdl);j=await gCall('models/'+mdl+':generateContent',body,key);}else throw e;}
-  const c=j&&j.candidates&&j.candidates[0];return c&&c.content&&c.content.parts?c.content.parts.map(x=>x.text||'').join('').trim():'';}
-async function gPickModel(key){const j=await gCall('models?pageSize=1000',null,key);
-  const ms=(j.models||[]).filter(x=>(x.supportedGenerationMethods||[]).includes('generateContent')).map(x=>x.name.replace(/^models\//,''));
-  if(ms.includes('gemini-flash-latest'))return 'gemini-flash-latest';
-  const ver=n=>{const r=n.match(/gemini-(\d+(?:\.\d+)?)/);return r?parseFloat(r[1]):0;};
-  const fl=ms.filter(n=>/flash/.test(n)&&!/(lite|image|tts|live|audio|embed|exp|preview|thinking|8b)/.test(n)).sort((a,b)=>ver(b)-ver(a)||a.length-b.length);
-  if(fl[0])return fl[0];const any=ms.find(n=>/flash/.test(n));if(any)return any;throw Object.assign(new Error('no model'),{msg:'쓸 수 있는 Gemini 모델을 찾지 못했어요.'});}
 
 /* ---------- render ---------- */
 function render(){
