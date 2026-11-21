@@ -458,7 +458,7 @@ function topbar(extra='',titleHtml='',bar=false){
 const STACK=[location.hash||'#/'];
 function trackNav(){const h=location.hash||'#/';if(STACK.length>1&&STACK[STACK.length-2]===h)STACK.pop();else if(STACK[STACK.length-1]!==h)STACK.push(h);}
 function parentHash(){if(R.v==='set'){const s=byId(R.id);return `#/${s.univ}/${s.year}`;}if(R.v==='year')return '#/'+R.u;return '#/';}
-function goBack(){if(STACK.length>1)history.back();else location.hash=parentHash();}
+function goBack(){location.hash=parentHash();}
 function toggleSide(){
   if(matchMedia('(max-width:860px)').matches){document.body.classList.toggle('side-open');}
   else{document.body.classList.toggle('body-closed');}
