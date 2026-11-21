@@ -208,6 +208,13 @@ textarea.ans::placeholder{color:var(--faint)}
 .tlen{display:flex;align-items:center;border:1px solid var(--line);background:var(--panel);border-radius:12px;height:40px;padding:3px;gap:2px;flex:none;margin-right:6px}
 .tlen button{border:0;background:transparent;height:100%;padding:0 10px;border-radius:9px;cursor:pointer;font-size:.84rem;color:var(--muted);font-variant-numeric:tabular-nums;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:background-color .2s var(--ease),color .2s var(--ease)}
 .tlen button.on{background:var(--active);color:var(--text);font-weight:500}
+.set-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.set-head .btn{flex:none;margin-top:4px}
+.qpast{margin-top:14px;padding:14px 18px;border-radius:16px;background:var(--side);display:grid;gap:14px}
+.qpast[hidden]{display:none}
+.qpast .pi b{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+.qpast .pi p{margin:0;white-space:pre-wrap;line-height:1.75;font-size:.93rem}
+.qpast .pi+.pi{border-top:1px solid var(--line);padding-top:12px}
 .qfoot{display:flex;justify-content:space-between;font-size:.76rem;color:var(--faint);margin-top:5px;padding:0 4px;font-variant-numeric:tabular-nums}
 .note{margin-top:12px;border-left:2px solid var(--accent);padding:2px 0 2px 14px}
 .note p{margin:0 0 6px;font-size:.93rem;line-height:1.7}
@@ -382,7 +389,7 @@ function img(id){if(!IMGS)IMGS=JSON.parse(document.getElementById('imgdata').tex
 const UNIV={ys:{name:'연세대',full:'연세대 구술',years:['mock',2026,2025,2024,2023,2022,2021]},ku:{name:'고려대',full:'고려대 계열적합형',years:[2026,2025,2024,2023,2022,2021]}};
 const KEY='hwalwoo-studio-v1';
 const MOCK='mock',isMock=s=>s.year===MOCK,yLabel=y=>y===MOCK?'실전모의고사':y+'학년도';
-const DEF={answers:{},revealed:{},last:null,settings:{theme:'system',font:'normal',minutes:10,ysMin:8}};
+const DEF={answers:{},history:{},revealed:{},last:null,settings:{theme:'system',font:'normal',minutes:10,ysMin:8}};
 let S=load();
 function load(){try{const r=JSON.parse(localStorage.getItem(KEY)||'null');if(r&&typeof r==='object')return {...DEF,...r,settings:{...DEF.settings,...(r.settings||{})}};}catch(e){}return JSON.parse(JSON.stringify(DEF));}
 let saveT=null;
@@ -391,6 +398,8 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const byId=id=>SETS.find(s=>s.id===id);
 const qk=(id,i)=>id+'#'+i;
+const hist=id=>(S.history&&S.history[id])||[];
+const md=t=>{const d=new Date(t);return `${d.getMonth()+1}월 ${d.getDate()}일`;};
 const written=(id,i)=>((S.answers[qk(id,i)]||'').trim().length>=10);
 const doneOf=s=>s.questions.reduce((n,_,i)=>n+(written(s.id,i)?1:0),0);
 function title(s){
@@ -399,7 +408,7 @@ function title(s){
   return `${s.year} 계열적합형 ${s.session}`;
 }
 function status(s){const d=doneOf(s),t=s.questions.length;return d===0?{t:`${t}문항`,c:''}:d===t?{t:'완료',c:'done'}:{t:`${d}/${t} 작성`,c:''};}
-function row(s,showUniv){const st=status(s);return `<a class="row" href="#/set/${s.id}"><div class="row-main"><div class="row-title">${showUniv?esc(UNIV[s.univ].name)+' ':''}${esc(title(s))}</div><div class="row-sub">${isMock(s)?'모의고사':'기출'}</div></div><div class="row-meta ${st.c}">${st.t}</div></a>`;}
+function row(s,showUniv){const st=status(s);return `<a class="row" href="#/set/${s.id}"><div class="row-main"><div class="row-title">${showUniv?esc(UNIV[s.univ].name)+' ':''}${esc(title(s))}</div><div class="row-sub">${isMock(s)?'모의고사':'기출'}${hist(s.id).length?` · ${hist(s.id).length}회 풀이`:''}</div></div><div class="row-meta ${st.c}">${st.t}</div></a>`;}
 function applySettings(){
   const r=document.documentElement;
   if(S.settings.theme==='system')r.removeAttribute('data-theme');else r.setAttribute('data-theme',S.settings.theme);
@@ -587,11 +596,11 @@ function practice(id){
   topbar(timerHtml(),`<small>${UNIV[s.univ].name}</small>${esc(title(s))}`,true);
   bindTimer();
   const cap=`${UNIV[s.univ].name} ${title(s)}`;
-  const qs=s.questions.map((q,k)=>{const v=S.answers[qk(id,k)]||'';return `<div class="qb"><div class="qlabel"><b>문제 ${k+1}</b><span>${q.pts?q.pts+'점':''}</span></div><p class="qtext">${esc(q.q)}</p>
+  const qs=s.questions.map((q,k)=>{const v=S.answers[qk(id,k)]||'';const past=hist(id).map((h,n)=>[n+1,h]).filter(([n,h])=>(h.a[k]||'').trim()).reverse();return `<div class="qb"><div class="qlabel"><b>문제 ${k+1}</b><span>${q.pts?q.pts+'점':''}</span></div><p class="qtext">${esc(q.q)}</p>
     <div class="qin"><textarea class="ans" data-k="${k}" placeholder="답안을 쓰거나, 말할 순서를 메모해 보세요." aria-label="문제 ${k+1} 답안">${esc(v)}</textarea>${SR?`<button type="button" class="mic" data-mic="${k}" aria-label="문제 ${k+1} 말로 답하기" aria-pressed="false">${IC.mic}</button>`:''}</div>
     <div class="qfoot"><span>${v.length}자</span><span data-saved="${k}"></span></div>
-    <div class="qact"><button type="button" class="btn sm" data-show="${k}" aria-expanded="false" aria-controls="qa${k}">답안 보기</button><button type="button" class="btn sm" data-grade="${k}">Claude로 채점</button><a class="grade-go" data-go="${k}" href="https://claude.ai/new" target="_blank" rel="noopener">Claude에 붙여넣기 ↗</a></div>
-    <div class="qans" id="qa${k}" hidden>${q.exhtml||'<p class="hint">이 문항은 아직 답안이 없어요.</p>'}</div></div>`;}).join('');
+    <div class="qact"><button type="button" class="btn sm" data-show="${k}" aria-expanded="false" aria-controls="qa${k}">답안 보기</button><button type="button" class="btn sm" data-grade="${k}">Claude로 채점</button>${past.length?`<button type="button" class="btn sm" data-past="${k}" aria-expanded="false" aria-controls="qp${k}">지난 답안</button>`:''}<a class="grade-go" data-go="${k}" href="https://claude.ai/new" target="_blank" rel="noopener">Claude에 붙여넣기 ↗</a></div>
+    ${past.length?`<div class="qpast" id="qp${k}" hidden>${past.map(([n,h])=>`<div class="pi"><b>${n}회차 · ${md(h.at)} · ${h.a[k].length}자</b><p>${esc(h.a[k])}</p></div>`).join('')}</div>`:''}<div class="qans" id="qa${k}" hidden>${q.exhtml||'<p class="hint">이 문항은 아직 답안이 없어요.</p>'}</div></div>`;}).join('');
   const label=isMock(s)?'모의고사 해설':s.univ==='ys'?'출제 의도와 공식 해설':(s.year===2021?'공식 채점 기준':'공식 예시 답안');
   const revealHtml=s.answer.length?`<div class="reveal"><h2>${label}</h2><p class="hint">${isMock(s)?'모의고사 해설 원문이에요':'학교가 공개한 해설 원문이에요'}. 다 풀고 나서 열어 보세요.</p><button class="btn" id="revBtn" aria-expanded="false" aria-controls="revBody">펼치기</button>
     <div id="revBody" hidden>${s.univ==='ku'&&s.sourceNote?`<p class="hint">${esc(s.sourceNote)}</p>`:''}${s.answer.map(a=>imgTag(a,cap+' 해설')).join('')}</div></div>`:'';
@@ -599,7 +608,7 @@ function practice(id){
     <div class="tabs">${seg('tab',[['paper','제시문'],['answers','답안']],tab)}</div>
     <section class="pane paper" aria-label="제시문"><div class="paper-inner"><div class="paper-cap">원문을 누르면 크게 볼 수 있어요.</div>${s.problem.map(p=>imgTag(p,cap+' 제시문')).join('')}</div></section>
     <section class="pane answers" aria-label="답안"><div class="answers-inner">
-      <div class="set-head"><h1>${esc(title(s))}</h1><p>${esc(UNIV[s.univ].name)} ${isMock(s)?'실전모의고사':'기출'}</p></div>
+      <div class="set-head"><div><h1>${esc(title(s))}</h1><p>${esc(UNIV[s.univ].name)} ${isMock(s)?'실전모의고사':'기출'}${hist(id).length?` · ${hist(id).length}회 풀이`:''}</p></div><button type="button" class="btn sm" id="retry">새로 풀기</button></div>
       ${qs}
       <div class="allact"><button type="button" class="btn" id="showAll" aria-expanded="false">답안 한번에 보기</button><button type="button" class="btn" id="gradeAll">Claude로 한번에 채점</button><a class="grade-go" id="goAll" href="https://claude.ai/new" target="_blank" rel="noopener">Claude에 붙여넣기 ↗</a></div>
       ${revealHtml}
@@ -607,6 +616,13 @@ function practice(id){
     </div></section></div>`;
   document.querySelectorAll('textarea.ans').forEach(t=>{auto(t);t.addEventListener('input',()=>{const k=t.dataset.k;S.answers[qk(id,k)]=t.value;save();auto(t);t.closest('.qb').querySelector('.qfoot span').textContent=t.value.length+'자';const sv=document.querySelector(`[data-saved="${k}"]`);sv.textContent='저장됨';clearTimeout(sv._h);sv._h=setTimeout(()=>sv.textContent='',1400);});});
   document.querySelectorAll('[data-mic]').forEach(b=>{const t=b.previousElementSibling;b.onclick=()=>{if(MIC&&MIC.btn===b)micStop();else micStart(t,b);};t.addEventListener('keydown',()=>{if(MIC&&MIC.t===t)micStop();});});
+  $('retry').onclick=()=>{const a={};s.questions.forEach((q,k)=>{const v=(S.answers[qk(id,k)]||'').trim();if(v)a[k]=S.answers[qk(id,k)];});
+    if(!Object.keys(a).length){toast('아직 쓴 답안이 없어요.');return;}
+    micStop();if(!S.history)S.history={};(S.history[id]=S.history[id]||[]).push({at:Date.now(),a});
+    s.questions.forEach((q,k)=>delete S.answers[qk(id,k)]);save();
+    T.set=null;practice(id);sidebar();const p=$('prac'),an=document.querySelector('.answers');if(p)p.scrollTop=0;if(an)an.scrollTop=0;
+    toast(`${hist(id).length}회차 답안을 보관했어요. 새로 풀어 보세요.`);};
+  document.querySelectorAll('[data-past]').forEach(b=>b.onclick=()=>toggle(b,$('qp'+b.dataset.past),'지난 답안','지난 답안 숨기기'));
   const toggle=(btn,box,on,off)=>{const open=box.hidden;box.hidden=!open;btn.textContent=open?off:on;btn.setAttribute('aria-expanded',open);btn.classList.toggle('on',open);if(open){box.classList.remove('appear');void box.offsetWidth;box.classList.add('appear');}};
   document.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>toggle(b,$('qa'+b.dataset.show),'답안 보기','답안 숨기기'));
   const rb=$('revBtn');if(rb)rb.onclick=()=>toggle(rb,$('revBody'),'펼치기','접기');
@@ -692,7 +708,6 @@ function settings(){
     <div class="setting"><div class="lbl"><b>글자 크기</b><span>문제와 답안 글씨에 적용돼요.</span></div>${seg('font',[['small','작게'],['normal','보통'],['large','크게']],S.settings.font)}</div>
     <div class="setting"><div class="lbl"><b>타이머</b><span>연세대 8분(타이머 옆에서 5분으로 바꿀 수 있어요), 고려대 21분. 세트를 열면 학교에 맞춰 바뀌어요.</span></div></div>
     <div class="setting"><div class="lbl"><b>답안 백업</b><span>작성한 답안 ${cnt}개. 파일로 내보내 다른 기기에서 불러올 수 있어요.</span></div><div class="btns"><button class="btn" id="exp">내보내기</button><button class="btn" id="imp">불러오기</button><input type="file" id="impFile" accept="application/json,.json" hidden></div></div>
-    <div class="setting"><div class="lbl"><b>기록 지우기</b><span>모든 답안과 해설 열람 기록을 지워요. 되돌릴 수 없어요.</span></div><button class="btn" id="wipe">모두 지우기</button></div>
     <div class="setting dev" id="devRow"><div class="lbl"><b>개발자 모드</b><span id="devNum" aria-live="polite"></span></div></div>
   </div>`;
   SEGH.theme=v=>{S.settings.theme=v;save();const sg=document.querySelector('[data-seg=theme]');
@@ -704,7 +719,6 @@ function settings(){
   $('imp').onclick=()=>$('impFile').click();
   $('impFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);const d=j.data||j;if(!d.answers)throw 0;S={...DEF,...d,settings:{...DEF.settings,...(d.settings||{})}};save();applySettings();settings();toast('답안을 불러왔어요.');}catch(err){toast('이 파일은 활우 스튜디오 백업 파일이 아니에요.');}};r.readAsText(f);};
   bindDev();
-  $('wipe').onclick=()=>{if(confirm('모든 답안과 기록을 지울까요? 되돌릴 수 없어요.')){const st=S.settings;S=JSON.parse(JSON.stringify(DEF));S.settings=st;save();settings();toast('기록을 지웠어요.');}};
 }
 
 /* ---------- developer mode easter egg ---------- */
