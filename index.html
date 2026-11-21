@@ -624,7 +624,7 @@ function practice(id){
       <div class="navpair">${prev?`<a href="#/set/${prev.id}"><small>이전 세트</small><div>${esc(title(prev))}</div></a>`:'<span></span>'}${next?`<a class="nx" href="#/set/${next.id}"><small>다음 세트</small><div>${esc(title(next))}</div></a>`:'<span></span>'}</div>
     </div></section></div>`;
   document.querySelectorAll('textarea.ans').forEach(t=>{auto(t);t.addEventListener('input',()=>{const k=t.dataset.k;S.answers[qk(id,k)]=t.value;save();auto(t);t.closest('.qb').querySelector('.qfoot span').textContent=t.value.length+'자';const sv=document.querySelector(`[data-saved="${k}"]`);sv.textContent='저장됨';clearTimeout(sv._h);sv._h=setTimeout(()=>sv.textContent='',1400);});});
-  document.querySelectorAll('[data-mic]').forEach(b=>{const t=b.previousElementSibling;b.onclick=()=>{if(b.classList.contains('busy'))return;if(MIC&&MIC.btn===b)micStop();else micStart(t,b);};t.addEventListener('keydown',()=>{if(MIC&&MIC.t===t&&MIC.kind==='sr')micStop();});});
+  document.querySelectorAll('[data-mic]').forEach(b=>{const t=b.previousElementSibling;b.onclick=()=>{if(b.classList.contains('busy'))return;if(MIC&&MIC.btn===b)micStop();else micStart(t,b);};t.addEventListener('keydown',()=>{if(MIC&&MIC.t===t)micStop();});});
   $('retry').onclick=()=>{const a={};s.questions.forEach((q,k)=>{const v=(S.answers[qk(id,k)]||'').trim();if(v)a[k]=S.answers[qk(id,k)];});
     if(!Object.keys(a).length){toast('아직 쓴 답안이 없어요.');return;}
     micStop();if(!S.history)S.history={};(S.history[id]=S.history[id]||[]).push({at:Date.now(),a});
@@ -794,54 +794,86 @@ function srStart(m){
   try{rec.start();}catch(e){micStop();toast('음성 인식을 시작하지 못했어요.');}
 }
 
-/* 녹음 (16kHz 모노 PCM) */
+/* 녹음 (16kHz 모노 PCM): 쉬는 지점마다 잘라 Gemini로 보내고,
+   그 사이에는 브라우저 음성 인식으로 바로 미리 보여 준다 */
 async function recStart(m){
-  Object.assign(m,{kind:'rec',pcm:[],n:0,t0:Date.now()});MIC=m;micPaint(m,'on');
-  let stream,ctx;
-  m.stop=()=>{micPaint(m,'busy');clearInterval(m.h);try{m.proc&&m.proc.disconnect();m.src&&m.src.disconnect();}catch(e){}
+  Object.assign(m,{kind:'rec',segs:[],cur:[],curN:0,curSpeech:false,sil:0,noise:.004,t0:Date.now(),base:m.t.value,
+    live:'',srCarry:'',srOff:0,srText:'',errShown:false});
+  MIC=m;micPaint(m,'on');
+  const set=byId(m.setId);m.qtext=set&&set.questions[m.k]?set.questions[m.k].q:'';
+  let stream,ctx,sr=null;
+  m.stop=()=>{micPaint(m,'busy');clearInterval(m.h);m.srWant=false;if(sr){try{sr.stop();}catch(e){}}
+    try{m.proc&&m.proc.disconnect();m.src&&m.src.disconnect();}catch(e){}
     if(stream)stream.getTracks().forEach(x=>x.stop());if(ctx)ctx.close().catch(()=>{});
-    recFinish(m);};
+    recCut(m);m.live='';recShow(m);recFinish(m);};
   try{
     ctx=new (window.AudioContext||window.webkitAudioContext)();
     stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     if(MIC!==m){stream.getTracks().forEach(x=>x.stop());ctx.close().catch(()=>{});return;}
     await ctx.resume();
-    const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1),ratio=ctx.sampleRate/16000;let pos=0;
-    proc.onaudioprocess=e=>{const x=e.inputBuffer.getChannelData(0),out=new Int16Array(Math.ceil((x.length-pos)/ratio)+1);let j=0;
+    const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1),ratio=ctx.sampleRate/16000,fd=4096/ctx.sampleRate;let pos=0;
+    proc.onaudioprocess=e=>{if(MIC!==m)return;const x=e.inputBuffer.getChannelData(0),out=new Int16Array(Math.ceil((x.length-pos)/ratio)+1);let j=0,sq=0;
+      for(let i=0;i<x.length;i++)sq+=x[i]*x[i];
       while(pos<x.length){const i=pos|0,f=pos-i,a=x[i],b=i+1<x.length?x[i+1]:a;let v=a+(b-a)*f;v=v<-1?-1:v>1?1:v;out[j++]=v<0?v*32768:v*32767;pos+=ratio;}
-      pos-=x.length;m.pcm.push(out.subarray(0,j));m.n+=j;};
+      pos-=x.length;m.cur.push(out.subarray(0,j));m.curN+=j;
+      const rms=Math.sqrt(sq/x.length),speech=rms>Math.max(.012,m.noise*3);
+      if(!speech)m.noise=m.noise*.95+rms*.05;
+      if(speech){m.curSpeech=true;m.sil=0;}else m.sil+=fd;
+      const len=m.curN/16000;
+      if(m.curSpeech&&((len>=2.5&&m.sil>=.6)||len>=25))recCut(m);
+      else if(!m.curSpeech&&len>=4){const last=m.cur[m.cur.length-1];m.cur=[last];m.curN=last.length;}};
     src.connect(proc);proc.connect(ctx.destination);m.src=src;m.proc=proc;
     const tick=()=>{const s=Math.floor((Date.now()-m.t0)/1000);micNote(m,`녹음 중 ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`);};tick();m.h=setInterval(tick,500);
-  }catch(e){if(MIC===m)MIC=null;micPaint(m,'');clearInterval(m.h);if(stream)stream.getTracks().forEach(x=>x.stop());if(ctx)ctx.close().catch(()=>{});
+    /* 미리 보기: 브라우저 음성 인식 (안 되면 조용히 건너뜀) */
+    if(SR){try{sr=new SR();sr.lang='ko-KR';sr.continuous=true;sr.interimResults=true;m.srWant=true;let fails=0;
+      sr.onresult=e=>{if(MIC!==m)return;fails=0;let f='',im='';for(let i=0;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)f=micJoin(f,r[0].transcript);else im=micJoin(im,r[0].transcript);}
+        m.srText=micJoin(f,im);m.live=micJoin(m.srCarry,m.srText.slice(m.srOff));recShow(m);};
+      sr.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'||e.error==='audio-capture')m.srWant=false;};
+      sr.onend=()=>{m.srCarry=m.live;m.srOff=0;m.srText='';if(MIC===m&&m.srWant&&++fails<6){try{sr.start();}catch(e){}}};
+      sr.start();}catch(e){sr=null;}}
+  }catch(e){if(MIC===m)MIC=null;micPaint(m,'');clearInterval(m.h);if(stream)stream.getTracks().forEach(x=>x.stop());if(ctx)ctx.close().catch(()=>{});if(sr){try{sr.stop();}catch(_){}}
     toast(e&&e.name==='NotAllowedError'?'마이크를 쓸 수 있게 허용해 주세요.':'마이크를 시작하지 못했어요.');}
+}
+/* 지금까지 모인 소리를 한 덩어리로 잘라 Gemini에 보냄 */
+function recCut(m){
+  if(!m.curN){return;}
+  const pcm=new Int16Array(m.curN);let o=0;m.cur.forEach(c=>{pcm.set(c,o);o+=c.length;});
+  const seg={text:null,preview:m.live,speech:m.curSpeech};
+  m.cur=[];m.curN=0;m.curSpeech=false;m.sil=0;
+  m.live='';m.srCarry='';m.srOff=m.srText.length;
+  m.segs.push(seg);
+  if(!seg.speech||pcm.length<16000*.6){seg.text=seg.speech?seg.preview:'';recShow(m);return;}
+  const prev=m.segs.slice(0,-1).map(x=>x.text!=null?x.text:x.preview).join(' ').slice(-200);
+  seg.p=b64(wavBlob(pcm)).then(d=>gTranscribe(d,m.qtext,prev)).then(t=>{seg.text=t;})
+    .catch(e=>{seg.text=seg.preview;if(!m.errShown){m.errShown=true;toast(e.msg||'일부를 Gemini로 받아 적지 못해 미리 보기 글로 남겼어요.');}})
+    .finally(()=>recShow(m));
+  recShow(m);
+}
+function recText(m){let t=m.base;m.segs.forEach(x=>{t=micJoin(t,x.text!=null?x.text:x.preview);});return micJoin(t,m.live);}
+function recShow(m){if(m.t.isConnected&&R.v==='set'&&R.id===m.setId){const v=recText(m);if(m.t.value!==v){m.t.value=v;m.t.dispatchEvent(new Event('input'));}}}
+async function recFinish(m){
+  micNote(m,'받아 적는 중…');
+  await Promise.all(m.segs.map(x=>x.p).filter(Boolean));
+  const v=recText(m),key=qk(m.setId,m.k);
+  if(m.t.isConnected&&R.v==='set'&&R.id===m.setId)recShow(m);else{S.answers[key]=v;save();}
+  micNote(m,m.segs.some(x=>x.text)?'받아 적었어요':'');if(!m.segs.some(x=>x.speech))toast('알아들은 말이 없어요.');
+  micPaint(m,'');
 }
 function wavBlob(pcm){const b=new ArrayBuffer(44+pcm.length*2),v=new DataView(b),w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
   w(0,'RIFF');v.setUint32(4,36+pcm.length*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
   v.setUint32(24,16000,true);v.setUint32(28,32000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,pcm.length*2,true);
   new Int16Array(b,44).set(pcm);return new Blob([b],{type:'audio/wav'});}
 const b64=blob=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=no;r.readAsDataURL(blob);});
-async function recFinish(m){
-  if(m.n<16000*0.6){micPaint(m,'');micNote(m,'');toast('녹음이 너무 짧아요.');return;}
-  const all=new Int16Array(m.n);let o=0;m.pcm.forEach(c=>{all.set(c,o);o+=c.length;});m.pcm=null;
-  const seg=16000*240,parts=[];for(let i=0;i<all.length;i+=seg)parts.push(all.subarray(i,i+seg));
-  const set=byId(m.setId),q=set&&set.questions[m.k];let out='';
-  try{
-    for(let i=0;i<parts.length;i++){micNote(m,parts.length>1?`받아 적는 중… (${i+1}/${parts.length})`:'받아 적는 중…');
-      out=micJoin(out,await gTranscribe(await b64(wavBlob(parts[i])),q?q.q:''));}
-    micPut(m,out);micNote(m,out?'받아 적었어요':'');if(!out)toast('알아들은 말이 없어요.');
-  }catch(e){micNote(m,'');toast(e.msg||'받아 적지 못했어요. 잠시 뒤 다시 해 보세요.');}
-  micPaint(m,'');
-}
 async function gCall(path,body,key){const r=await fetch(GAPI+path,{method:body?'POST':'GET',headers:Object.assign({'x-goog-api-key':key},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});
   let j=null;try{j=await r.json();}catch(e){}
   if(!r.ok){const err=new Error('gemini '+r.status);err.status=r.status;err.detail=j&&j.error&&j.error.message||'';
     err.msg=r.status===400&&/key/i.test(err.detail)||r.status===401||r.status===403?'Gemini API 키를 확인해 주세요.':r.status===429?'Gemini 사용량 한도에 걸렸어요. 잠시 뒤 다시 해 보세요.':'';throw err;}
   return j;}
-async function gTranscribe(data,qtext){const key=gkey();
+async function gTranscribe(data,qtext,prev){const key=gkey();
   const prompt=['한국어 대학 구술면접 연습 답변을 녹음한 것이다. 들리는 말을 한국어로 그대로 받아 적어라.',
     '- 요약하거나 고치거나 덧붙이지 마라. 말한 내용과 순서를 그대로 살려라.','- "어", "음" 같은 군말과 말을 더듬어 반복한 부분만 빼라.',
     '- 띄어쓰기와 문장부호는 자연스럽게 넣어라.','- "제시문 가/나/다/라"는 "제시문 [가]"처럼 대괄호로 적어라.',
-    '- 받아 적은 글만 출력하라. 들리는 말이 없으면 아무것도 출력하지 마라.',qtext?'(참고: 답하는 문제는 "'+qtext+'")':''].filter(Boolean).join('\n');
+    '- 받아 적은 글만 출력하라. 들리는 말이 없으면 아무것도 출력하지 마라.',qtext?'(참고: 답하는 문제는 "'+qtext+'")':'',prev?'(참고: 이 녹음은 앞의 말에 바로 이어진다. 앞부분은 "…'+prev+'" 이다. 앞부분은 다시 적지 마라.)':''].filter(Boolean).join('\n');
   const body={contents:[{parts:[{text:prompt},{inline_data:{mime_type:'audio/wav',data}}]}],generationConfig:{temperature:0}};
   let j;try{j=await gCall('models/'+gmodel()+':generateContent',body,key);}
   catch(e){if(e.status===404){const mdl=await gPickModel(key);localStorage.setItem(GMK,mdl);j=await gCall('models/'+mdl+':generateContent',body,key);}else throw e;}
