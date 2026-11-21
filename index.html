@@ -745,6 +745,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeZoom();const g
 
 /* ---------- 말로 답하기 (브라우저 음성 인식) ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+try{localStorage.removeItem('hwalwoo-gemini-key');localStorage.removeItem('hwalwoo-gemini-model');}catch(e){}
 let MIC=null;
 function micJoin(a,b){a=a||'';b=(b||'').trim();if(!b)return a;return a+(a&&!/\s$/.test(a)?' ':'')+b;}
 function micPaint(on){if(!MIC)return;MIC.btn.classList.toggle('on',on);MIC.btn.setAttribute('aria-pressed',on);}
